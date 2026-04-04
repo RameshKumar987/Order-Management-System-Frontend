@@ -4,8 +4,8 @@ import { api, inventoryApi } from '../../api/axios';
 import { ShoppingBag, ArrowRight, Package } from 'lucide-react';
 import { toast } from 'sonner';
 
-// OrderDto: { id, userId, status, items: [{productId, quantity, price}] }
-type OrderItem = { productId: number; quantity: number; price: number };
+// OrderDto: { id, userId, status, items: [{productId, productName, quantity, price}] }
+type OrderItem = { productId: number; productName: string; quantity: number; price: number };
 type Order = { id: number; userId: number; status: string; items: OrderItem[] };
 
 // Product from inventory service
@@ -27,20 +27,29 @@ export const CustomerDashboard: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleOrder = async (productId: number, quantity = 1) => {
+  const handleOrder = async (product: Product, quantity = 1) => {
     try {
-      // CreateOrderRequest: { items: [{productId, quantity}] } — no price field
-      await api.post('/orders', { items: [{ productId, quantity }] });
+      // CreateOrderRequest: { items: [{productId, productName, quantity}] }
+      await api.post('/orders', { 
+        items: [{ 
+          productId: product.id, 
+          productName: product.name,
+          quantity 
+        }] 
+      });
       toast.success('Order placed successfully!');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to place order');
     }
   };
 
-  const statusColor = (s: string) =>
-    s === 'DELIVERED' ? 'bg-green-100 text-green-700'
-    : s === 'PENDING' ? 'bg-yellow-100 text-yellow-700'
-    : 'bg-blue-100 text-blue-700';
+  const statusColor = (s: string) => ({
+    DELIVERED: 'bg-green-100 text-green-700',
+    PENDING: 'bg-yellow-100 text-yellow-700',
+    PAYMENT_PENDING: 'bg-orange-100 text-orange-700',
+    CONFIRMED: 'bg-emerald-100 text-emerald-700',
+    CANCELLED: 'bg-red-100 text-red-700',
+  }[s] ?? 'bg-slate-100 text-slate-700');
 
   const orderTotal = (o: Order) =>
     o.items.reduce((sum, i) => sum + (i.price || 0) * i.quantity, 0);
@@ -83,7 +92,7 @@ export const CustomerDashboard: React.FC = () => {
                   <h3 className="font-semibold text-slate-900 mb-1 truncate">{p.name}</h3>
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-lg font-bold text-slate-900">₹{p.price.toLocaleString()}</span>
-                    <button onClick={() => handleOrder(p.id)} disabled={p.stock === 0}
+                    <button onClick={() => handleOrder(p)} disabled={p.stock === 0}
                       className="text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                       {p.stock === 0 ? 'Out of Stock' : 'Buy Now'}
                     </button>
@@ -112,11 +121,18 @@ export const CustomerDashboard: React.FC = () => {
               <Link to={`/customer/orders/${o.id}`} key={o.id} className="flex items-center justify-between bg-white p-5 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:shadow-sm transition-all">
                 <div>
                   <p className="font-semibold text-slate-900">Order #{o.id}</p>
-                  <p className="text-sm text-slate-500">{o.items?.length ?? 0} item(s)</p>
+                  <div className="flex gap-2 mt-0.5">
+                    {o.items?.slice(0, 2).map((item, idx) => (
+                      <span key={idx} className="text-[10px] bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded">
+                        {item.productName || 'Product'} (x{item.quantity})
+                      </span>
+                    ))}
+                    {o.items?.length > 2 && <span className="text-[10px] text-slate-400">+{o.items.length - 2} more</span>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="font-bold text-slate-900">₹{orderTotal(o).toLocaleString()}</span>
-                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusColor(o.status)}`}>{o.status}</span>
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tight ${statusColor(o.status)}`}>{o.status.replace(/_/g, ' ')}</span>
                 </div>
               </Link>
             ))

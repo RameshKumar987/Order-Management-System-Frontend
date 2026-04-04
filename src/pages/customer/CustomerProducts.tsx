@@ -23,10 +23,16 @@ export const CustomerProducts: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleOrder = async (productId: number) => {
+  const handleOrder = async (product: Product) => {
     try {
-      // CreateOrderRequest: { items: [{productId, quantity}] }
-      await api.post('/orders', { items: [{ productId, quantity: 1 }] });
+      // CreateOrderRequest: { items: [{productId, productName, quantity}] }
+      await api.post('/orders', { 
+        items: [{ 
+          productId: product.id, 
+          productName: product.name,
+          quantity: 1 
+        }] 
+      });
       toast.success('Order placed!');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to place order');
@@ -85,7 +91,7 @@ export const CustomerProducts: React.FC = () => {
                     {p.stock === 0 ? 'Out of stock' : p.stock <= 5 ? `Only ${p.stock} left` : 'In stock'}
                   </span>
                 </div>
-                <button onClick={() => handleOrder(p.id)} disabled={p.stock === 0}
+                <button onClick={() => handleOrder(p)} disabled={p.stock === 0}
                   className="mt-3 w-full text-sm font-medium bg-indigo-600 text-white py-2 rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                   {p.stock === 0 ? 'Out of Stock' : 'Place Order'}
                 </button>

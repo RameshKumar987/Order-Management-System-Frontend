@@ -4,27 +4,28 @@ import { api } from '../../api/axios';
 import { Package, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
-// OrderDto: { id, userId, status, items: [{productId, quantity, price}] }
-type OrderItem = { productId: number; quantity: number; price: number };
+// OrderDto: { id, userId, status, items: [{productId, productName, quantity, price}] }
+type OrderItem = { productId: number; productName: string; quantity: number; price: number };
 type Order = { id: number; userId: number; status: string; items: OrderItem[] };
 
 const statusColor = (s: string) => ({
   DELIVERED: 'bg-green-100 text-green-700 border-green-200',
   PENDING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  PROCESSING: 'bg-blue-100 text-blue-700 border-blue-200',
+  PAYMENT_PENDING: 'bg-orange-100 text-orange-700 border-orange-200',
+  CONFIRMED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   CANCELLED: 'bg-red-100 text-red-700 border-red-200',
-  SHIPPED: 'bg-indigo-100 text-indigo-700 border-indigo-200',
 }[s] ?? 'bg-slate-100 text-slate-700 border-slate-200');
 
 const orderTotal = (o: Order) =>
   o.items.reduce((sum, i) => sum + (i.price || 0) * i.quantity, 0);
+
+declare var Razorpay: any;
 
 export const CustomerOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // correct endpoint: GET /orders/my-orders (not /orders/customer)
     api.get('/orders/my-orders')
       .then(r => setOrders(r.data))
       .catch(() => toast.error('Failed to load orders'))
@@ -39,11 +40,59 @@ export const CustomerOrders: React.FC = () => {
     } catch { toast.error('Failed to cancel order'); }
   };
 
+  const payOrder = async (id: number) => {
+    try {
+      // 1. Create Razorpay Order in backend
+      const res = await api.post(`/payments/razorpay/create-order/${id}`);
+      const rzpData = res.data.data; // { rzpOrderId, amount, currency, keyId, orderId }
+
+      const options = {
+        key: rzpData.keyId,
+        amount: rzpData.amount * 100,
+        currency: rzpData.currency,
+        name: "Order Management System",
+        description: `Payment for Order #${id}`,
+        order_id: rzpData.rzpOrderId,
+        handler: async (response: any) => {
+          try {
+            // 2. Verify Payment in backend
+            const verifyRes = await api.post('/payments/razorpay/verify', {
+              ...response,
+              orderId: id
+            });
+            
+            if (verifyRes.data.success) {
+              toast.success('Payment successful! Order confirmed.');
+              setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'CONFIRMED' } : o));
+            } else {
+              toast.error('Payment verification failed');
+            }
+          } catch (err) {
+            toast.error('Verification error');
+          }
+        },
+        prefill: {
+          name: "Customer Name",
+          email: "customer@example.com",
+        },
+        theme: {
+          color: "#4f46e5",
+        }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to initiate payment');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900 mb-1">My Orders</h1>
-        <p className="text-slate-500">Track the status of all your past and current orders.</p>
+        <p className="text-slate-500">Track and manage your orders.</p>
       </div>
 
       {loading ? (
@@ -59,25 +108,45 @@ export const CustomerOrders: React.FC = () => {
         <div className="space-y-4">
           {orders.map(o => (
             <div key={o.id} className="bg-white rounded-2xl border border-slate-100 p-5 hover:border-indigo-200 hover:shadow-sm transition-all">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                    <Package className="w-6 h-6" />
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                      <Package className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900">Order #{o.id}</p>
+                      <div className="flex gap-2 mt-1">
+                        {o.items.map((item, idx) => (
+                          <span key={idx} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                            {item.productName || 'Product'} (x{item.quantity})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-900">Order #{o.id}</p>
-                    <p className="text-sm text-slate-500">{o.items?.length ?? 0} item(s)</p>
+                  <div className="text-right">
+                    <p className="font-bold text-slate-900">₹{orderTotal(o).toLocaleString()}</p>
+                    <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border mt-1 inline-block ${statusColor(o.status)}`}>
+                      {o.status.replace(/_/g, ' ')}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${statusColor(o.status)}`}>{o.status}</span>
-                  <span className="font-bold text-slate-900">₹{orderTotal(o).toLocaleString()}</span>
-                  <Link to={`/customer/orders/${o.id}`} className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700">
-                    Track <ArrowRight className="w-4 h-4" />
-                  </Link>
-                  {o.status === 'PENDING' && (
-                    <button onClick={() => cancelOrder(o.id)} className="text-sm font-medium text-red-500 hover:text-red-700">Cancel</button>
+
+                <div className="flex items-center justify-end gap-4 border-top pt-3 mt-1">
+                  {o.status === 'PAYMENT_PENDING' && (
+                    <button onClick={() => payOrder(o.id)} className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm">
+                      Pay Now
+                    </button>
                   )}
+                  {(o.status === 'PENDING' || o.status === 'PAYMENT_PENDING') && (
+                    <button onClick={() => cancelOrder(o.id)} className="text-sm font-medium text-red-500 hover:text-red-700 px-2">
+                      Cancel Order
+                    </button>
+                  )}
+                  <Link to={`/customer/orders/${o.id}`} className="text-sm font-medium text-slate-400 hover:text-indigo-600">
+                    View Details
+                  </Link>
                 </div>
               </div>
             </div>

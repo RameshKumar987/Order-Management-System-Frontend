@@ -1,5 +1,6 @@
 import axios from "axios";
 import { TokenService } from "./tokenService";
+import { jwtDecode } from "jwt-decode";
 
 // Default to API Gateway via environment variable or fallback to localhost:8080
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
@@ -59,6 +60,16 @@ api.interceptors.request.use(
     }
 
     if (token) {
+      // Extract userId from token to satisfy backend @RequestHeader requirements
+      try {
+        const decoded: any = jwtDecode(token);
+        if (decoded.userId) {
+          config.headers["X-User-Id"] = decoded.userId;
+        }
+      } catch (e) {
+        console.error("Token decoding failed", e);
+      }
+
       // Check if access token is expired or close to it
       if (TokenService.isTokenExpired(token) && refreshToken) {
         // Only try to refresh if not already refreshing
@@ -176,6 +187,16 @@ inventoryApi.interceptors.request.use(
     }
 
     if (token) {
+      // Extract userId from token
+      try {
+        const decoded: any = jwtDecode(token);
+        if (decoded.userId) {
+          config.headers["X-User-Id"] = decoded.userId;
+        }
+      } catch (e) {
+        // ignore decoding errors here
+      }
+
       if (TokenService.isTokenExpired(token) && refreshToken) {
         if (!isRefreshing) {
           try {

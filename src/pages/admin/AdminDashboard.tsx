@@ -4,8 +4,8 @@ import { api } from '../../api/axios';
 import { TrendingUp, Users, ShoppingBag, Clock, ArrowRight, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-// OrderDto: { id, userId, status, items: [{productId, quantity, price}] }
-type OrderItem = { productId: number; quantity: number; price: number };
+// OrderDto: { id, userId, status, items: [{productId, productName, quantity, price}] }
+type OrderItem = { productId: number; productName: string; quantity: number; price: number };
 type OrderDto = { id: number; userId: number; status: string; items: OrderItem[] };
 
 const orderTotal = (o: OrderDto) =>
@@ -62,18 +62,28 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const revenue = orders.filter(o => o.status === 'DELIVERED').reduce((s, o) => s + orderTotal(o), 0);
-  const pending = orders.filter(o => o.status === 'PENDING').length;
+  const revenue = orders
+    .filter(o => o.status === 'CONFIRMED' || o.status === 'DELIVERED')
+    .reduce((s, o) => s + orderTotal(o), 0);
+  
+  const pendingOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'PAYMENT_PENDING').length;
   const activeCustomers = new Set(orders.map(o => o.userId)).size;
 
   const metrics = [
-    { label: 'Delivered Revenue', value: `₹${revenue.toLocaleString()}`, icon: <TrendingUp className="w-5 h-5" />, color: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Revenue (Paid)', value: `₹${revenue.toLocaleString()}`, icon: <TrendingUp className="w-5 h-5" />, color: 'bg-emerald-50 text-emerald-600' },
     { label: 'Total Orders', value: orders.length.toString(), icon: <ShoppingBag className="w-5 h-5" />, color: 'bg-indigo-50 text-indigo-600' },
     { label: 'Unique Customers', value: activeCustomers.toString(), icon: <Users className="w-5 h-5" />, color: 'bg-violet-50 text-violet-600' },
-    { label: 'Pending Orders', value: pending.toString(), icon: <Clock className="w-5 h-5" />, color: 'bg-amber-50 text-amber-600' },
+    { label: 'Total Pending', value: pendingOrders.toString(), icon: <Clock className="w-5 h-5" />, color: 'bg-amber-50 text-amber-600' },
   ];
 
-  const statusColor = (s: string) => ({ DELIVERED: 'bg-green-100 text-green-700', PENDING: 'bg-yellow-100 text-yellow-700', PROCESSING: 'bg-blue-100 text-blue-700', CANCELLED: 'bg-red-100 text-red-700', SHIPPED: 'bg-indigo-100 text-indigo-700' }[s] ?? 'bg-slate-100 text-slate-600');
+  const statusColor = (s: string) => ({ 
+    DELIVERED: 'bg-green-100 text-green-700', 
+    PENDING: 'bg-yellow-100 text-yellow-700', 
+    PAYMENT_PENDING: 'bg-orange-100 text-orange-700',
+    CONFIRMED: 'bg-emerald-100 text-emerald-700',
+    CANCELLED: 'bg-red-100 text-red-700', 
+    SHIPPED: 'bg-indigo-100 text-indigo-700' 
+  }[s] ?? 'bg-slate-100 text-slate-600');
 
   return (
     <div className="space-y-8 relative">
@@ -125,7 +135,15 @@ export const AdminDashboard: React.FC = () => {
                   <tr key={o.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-semibold text-slate-900 text-sm">#{o.id}</td>
                     <td className="px-4 py-3 text-sm text-slate-600">User #{o.userId}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{o.items?.length ?? 0}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      <div className="flex flex-wrap gap-1">
+                        {o.items?.map((item, idx) => (
+                          <span key={idx} className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+                            {item.productName || 'Product'} (x{item.quantity})
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 font-semibold text-sm">₹{orderTotal(o).toLocaleString()}</td>
                     <td className="px-4 py-3"><span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor(o.status)}`}>{o.status}</span></td>
                   </tr>
