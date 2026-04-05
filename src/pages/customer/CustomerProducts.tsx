@@ -3,9 +3,6 @@ import { api, inventoryApi } from '../../api/axios';
 import { Package, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
-// OrderDto: { id, userId, status, items: [{productId, quantity, price}] }
-type OrderItem = { productId: number; quantity: number; price: number };
-type Order = { id: number; userId: number; status: string; items: OrderItem[] };
 type Product = { id: number; name: string; price: number; stock: number; category: { id: number; name: string }; imageUrls: string[] };
 type Category = { id: number; name: string };
 
@@ -79,8 +76,25 @@ export const CustomerProducts: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filtered.map(p => (
             <div key={p.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col">
-              <div className="h-44 bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center">
-                {p.imageUrls?.[0] ? <img src={p.imageUrls[0]} className="h-full w-full object-cover" alt={p.name} /> : <Package className="w-14 h-14 text-slate-300" />}
+              <div className="h-48 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center relative group overflow-hidden">
+                {p.imageUrls && p.imageUrls.length > 0 ? (
+                  <div className="w-full h-full relative flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
+                    {p.imageUrls.map((url, i) => (
+                      <div key={i} className="min-w-full h-full snap-center flex-shrink-0 relative">
+                        <img src={url} className="h-full w-full object-contain p-2" alt={`${p.name} - ${i + 1}`} />
+                      </div>
+                    ))}
+                    {p.imageUrls.length > 1 && (
+                      <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {p.imageUrls.map((_, i) => (
+                          <div key={i} className="w-1.5 h-1.5 rounded-full bg-slate-400 opacity-80" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Package className="w-14 h-14 text-slate-300" />
+                )}
               </div>
               <div className="p-4 flex flex-col flex-1">
                 <p className="text-xs text-indigo-500 font-medium mb-1">{p.category?.name}</p>

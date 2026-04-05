@@ -88,69 +88,84 @@ export const CustomerOrders: React.FC = () => {
     }
   };
 
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Sort natively by newest ID first
+  const sortedOrders = [...orders].sort((a, b) => b.id - a.id);
+  const totalPages = Math.ceil(sortedOrders.length / ITEMS_PER_PAGE);
+  const currentOrders = sortedOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900 mb-1">My Orders</h1>
-        <p className="text-slate-500">Track and manage your orders.</p>
+        <p className="text-slate-500">Track and manage your recent purchases and active orders.</p>
       </div>
 
       {loading ? (
-        <div className="space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-slate-100 animate-pulse rounded-2xl" />)}</div>
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => <div key={i} className="h-48 bg-slate-100 animate-pulse rounded-2xl" />)}
+        </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-          <Package className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-          <p className="text-xl font-semibold text-slate-700">No orders yet</p>
-          <p className="text-slate-400 mt-2">Start shopping to see your orders here!</p>
-          <Link to="/customer/products" className="mt-6 inline-block bg-indigo-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors">Browse Products</Link>
+        <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+          <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+          <p className="text-slate-500 font-medium text-lg">No orders found</p>
+          <Link to="/customer/products" className="inline-flex mt-4 text-indigo-600 font-medium hover:text-indigo-700">Start shopping <ArrowRight className="w-4 h-4 ml-1 my-auto" /></Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {orders.map(o => (
-            <div key={o.id} className="bg-white rounded-2xl border border-slate-100 p-5 hover:border-indigo-200 hover:shadow-sm transition-all">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                      <Package className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900">Order #{o.id}</p>
-                      <div className="flex gap-2 mt-1">
-                        {o.items.map((item, idx) => (
-                          <span key={idx} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                            {item.productName || 'Product'} (x{item.quantity})
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+        <div className="space-y-6">
+          {currentOrders.map(order => (
+            <div key={order.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50 gap-4">
+                <div className="flex items-center gap-4">
+                  <div className={`px-3 py-1.5 rounded-xl border text-sm font-bold ${statusColor(order.status)}`}>
+                    {order.status}
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-slate-900">₹{orderTotal(o).toLocaleString()}</p>
-                    <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border mt-1 inline-block ${statusColor(o.status)}`}>
-                      {o.status.replace(/_/g, ' ')}
-                    </span>
+                  <div>
+                    <h3 className="font-bold text-slate-900">Order #{order.id}</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Estimated Total: <span className="font-semibold text-slate-700">₹{orderTotal(order).toLocaleString()}</span></p>
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Link to={`/customer/orders/${order.id}`} className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors bg-white">Track Order</Link>
+                  {(order.status === 'PENDING' || order.status === 'PAYMENT_PENDING') && (
+                    <button onClick={() => cancelOrder(order.id)} className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors">Cancel Order</button>
+                  )}
+                  {order.status === 'PAYMENT_PENDING' && (
+                    <button onClick={() => payOrder(order.id)} className="px-4 py-2 bg-indigo-600 text-white border border-indigo-600 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">Pay Now</button>
+                  )}
+                </div>
+              </div>
 
-                <div className="flex items-center justify-end gap-4 border-top pt-3 mt-1">
-                  {o.status === 'PAYMENT_PENDING' && (
-                    <button onClick={() => payOrder(o.id)} className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm">
-                      Pay Now
-                    </button>
-                  )}
-                  {(o.status === 'PENDING' || o.status === 'PAYMENT_PENDING') && (
-                    <button onClick={() => cancelOrder(o.id)} className="text-sm font-medium text-red-500 hover:text-red-700 px-2">
-                      Cancel Order
-                    </button>
-                  )}
-                  <Link to={`/customer/orders/${o.id}`} className="text-sm font-medium text-slate-400 hover:text-indigo-600">
-                    View Details
-                  </Link>
+              <div className="p-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {order.items.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
+                      <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex items-center justify-center shrink-0">
+                        <Package className="w-5 h-5 text-slate-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 text-sm truncate">{item.productName || `Product #${item.productId}`}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Qty: {item.quantity} × ₹{(item.price || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           ))}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+              <span className="text-sm font-medium text-slate-500">Page {currentPage} of {totalPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+            </div>
+          )}
         </div>
       )}
     </div>
