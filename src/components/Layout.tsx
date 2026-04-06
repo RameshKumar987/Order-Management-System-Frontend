@@ -37,6 +37,7 @@ export const Layout: React.FC = () => {
       <NavItem to="/customer/products" icon={<Search />} label="Browse Catalog" />
       <NavItem to="/customer/orders" icon={<History />} label="My Orders" />
       <NavItem to="/customer/payments" icon={<CreditCard />} label="Payments" />
+      <NavItem to="/customer/profile" icon={<User />} label="My Profile" />
     </>
   );
 
@@ -94,7 +95,7 @@ export const Layout: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        <div className="p-4 md:p-8 flex-1">
+        <div className="p-4 md:p-8 flex-1 text-slate-800">
           <Outlet />
         </div>
       </main>

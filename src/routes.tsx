@@ -9,8 +9,10 @@ import { CustomerProducts } from "./pages/customer/CustomerProducts";
 import { CustomerOrders } from "./pages/customer/CustomerOrders";
 import { OrderTracking } from "./pages/customer/OrderTracking";
 import { CustomerPayments } from "./pages/customer/CustomerPayments";
+import { CustomerProfile } from "./pages/customer/CustomerProfile";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminInventoryView } from "./pages/admin/AdminInventoryView";
+import { AdminCustomerDetails } from "./pages/admin/AdminCustomerDetails";
 import { InventoryDashboard } from "./pages/inventory/InventoryDashboard";
 import { InventoryManage } from "./pages/inventory/InventoryManage";
 
@@ -48,6 +50,7 @@ export const router = createBrowserRouter([
               { path: "orders", element: <CustomerOrders /> },
               { path: "orders/:id", element: <OrderTracking /> },
               { path: "payments", element: <CustomerPayments /> },
+              { path: "profile", element: <CustomerProfile /> },
             ],
           },
           // Admin Routes
@@ -57,6 +60,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <AdminDashboard /> },
               { path: "inventory", element: <AdminInventoryView /> },
+              { path: "customers/:userId", element: <AdminCustomerDetails /> },
             ],
           },
           // Inventory Routes (also accessible to ADMIN)

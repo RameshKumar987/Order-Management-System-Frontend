@@ -12,25 +12,44 @@ export const CustomerProducts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState<number | null>(null);
+  
+  const ITEMS_PER_PAGE = 8;
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    Promise.all([inventoryApi.get('/inventory/products/with-stock'), inventoryApi.get('/inventory/categories')])
-      .then(([pr, cr]) => { setProducts(pr.data); setCategories(cr.data); })
-      .catch(() => toast.error('Failed to load products'))
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      try {
+        const [pr, cr] = await Promise.all([inventoryApi.get('/inventory/products/with-stock'), inventoryApi.get('/inventory/categories')]);
+        // Sort: Recent Top (Highest ID first)
+        const sorted = (pr.data || []).sort((a: any, b: any) => b.id - a.id);
+        setProducts(sorted); setCategories(cr.data);
+      } catch { toast.error('Discovery failure: Could not sync catalog'); }
+      finally { setLoading(false); }
+    };
+    fetchData();
   }, []);
 
   const handleOrder = async (product: Product) => {
     try {
-      // CreateOrderRequest: { items: [{productId, productName, quantity}] }
-      await api.post('/orders', { 
+      // 1. Fetch user's current address from profile
+      const userRes = await api.get('/auth/users/me');
+      const user = userRes.data;
+
+      // 2. Prepare order with address snapshot
+      const orderPayload = {
         items: [{ 
           productId: product.id, 
           productName: product.name,
           quantity: 1 
-        }] 
-      });
-      toast.success('Order placed!');
+        }],
+        deliveryAddress: user.addressLine || 'Store Pickup',
+        deliveryCity: user.city || '',
+        deliveryLat: user.latitude,
+        deliveryLng: user.longitude
+      };
+
+      await api.post('/orders', orderPayload);
+      toast.success('Order placed with saved address!');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to place order');
     }
@@ -40,7 +59,12 @@ export const CustomerProducts: React.FC = () => {
     const matchName = p.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = selectedCat === null || p.category?.id === selectedCat;
     return matchName && matchCat;
-  });
+  }).sort((a, b) => b.id - a.id);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const currentProducts = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => { setCurrentPage(1); }, [search, selectedCat]);
 
   return (
     <div className="space-y-6">
@@ -74,7 +98,7 @@ export const CustomerProducts: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filtered.map(p => (
+          {currentProducts.map(p => (
             <div key={p.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col">
               <div className="h-48 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center relative group overflow-hidden">
                 {p.imageUrls && p.imageUrls.length > 0 ? (
@@ -112,6 +136,29 @@ export const CustomerProducts: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination Footer */}
+      {totalPages > 1 && (
+        <div className="mt-12 flex items-center justify-between px-8 py-6 bg-white/50 backdrop-blur-sm rounded-[24px] border border-slate-100 shadow-sm">
+           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registry Page <span className="text-slate-900 ml-2">{currentPage} / {totalPages}</span></div>
+           <div className="flex gap-4">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                disabled={currentPage === 1} 
+                className="px-6 py-2 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-600 hover:text-indigo-600 transition-all shadow-sm disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                disabled={currentPage === totalPages} 
+                className="px-6 py-2 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-600 hover:text-indigo-600 transition-all shadow-sm disabled:opacity-40"
+              >
+                Next
+              </button>
+           </div>
         </div>
       )}
     </div>
