@@ -11,4 +11,12 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
+  <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+  <script type="module">
+    import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+
+    createChat({
+        webhookUrl: 'https://rameshkumarcs041.app.n8n.cloud/webhook/5ffbf609-40dd-4cf4-9237-3582820a86d7/chat'
+    });
+  </script>
 </html>
