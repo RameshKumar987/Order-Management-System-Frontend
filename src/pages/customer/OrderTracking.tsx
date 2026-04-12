@@ -4,17 +4,18 @@ import { api } from '../../api/axios';
 import { CheckCircle2, Clock, Truck, Package, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
-// OrderDto: { id, userId, status, items: [{productId, quantity, price}] }
-type OrderItem = { productId: number; quantity: number; price: number };
+// OrderDto: { id, userId, status, items: [{productId, productName, quantity, price}] }
+type OrderItem = { productId: number; productName: string; quantity: number; price: number };
 type OrderDto = { id: number; userId: number; status: string; items: OrderItem[] };
 
-const STAGES = ['PENDING', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+const STAGES = ['PENDING', 'PAYMENT_PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
 
 const stageIcon: Record<string, React.ReactNode> = {
   PENDING: <Clock className="w-5 h-5" />,
+  PAYMENT_PENDING: <Clock className="w-5 h-5" />,
+  CONFIRMED: <CheckCircle2 className="w-5 h-5" />,
   PROCESSING: <Package className="w-5 h-5" />,
   SHIPPED: <Truck className="w-5 h-5" />,
-  OUT_FOR_DELIVERY: <Truck className="w-5 h-5" />,
   DELIVERED: <CheckCircle2 className="w-5 h-5" />,
 };
 
@@ -79,7 +80,7 @@ export const OrderTracking: React.FC = () => {
           {order.items?.map((item, i) => (
             <div key={i} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-0">
               <div>
-                <p className="font-medium text-slate-900">Product #{item.productId}</p>
+                <p className="font-medium text-slate-900">{item.productName || 'Product'}</p>
                 <p className="text-sm text-slate-500">Qty: {item.quantity}</p>
               </div>
               <span className="font-bold text-slate-900">
