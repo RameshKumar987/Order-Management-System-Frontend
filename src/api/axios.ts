@@ -5,9 +5,6 @@ import { jwtDecode } from "jwt-decode";
 // Default to API Gateway via environment variable or fallback to localhost:8080
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-// Inventory service URL (port 8082)
-export const INVENTORY_BASE_URL = import.meta.env.VITE_INVENTORY_URL || "http://localhost:8082";
-
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -15,9 +12,9 @@ export const api = axios.create({
   },
 });
 
-// Separate axios instance for inventory service
+// inventoryApi also routed through API Gateway (same base URL)
 export const inventoryApi = axios.create({
-  baseURL: INVENTORY_BASE_URL,
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
